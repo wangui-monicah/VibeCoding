@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>The Matrix Mirror</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* The main display canvas */
+        canvas {
+            display: block;
+            /* Flip the canvas so it acts like a mirror */
+            transform: scaleX(-1); 
+        }
+
+        /* Hidden video element to grab raw data */
+        #videoInput {
+            display: none;
+        }
+
+        /* UI Overlay */
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #0F0;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 0 0 5px #0F0;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .status {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>System Interface</h1>
+        <div class="status">Parsing bio-digital data...</div>
+    </div>
+
+    <!-- The hidden raw video feed -->
+    <video id="videoInput" autoplay playsinline></video>
+    
+    <!-- The output canvas -->
+    <canvas id="matrixCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('videoInput');
+
+        // Matrix Configuration
+        const fontSize = 16;
+        const color = '#0F0'; // Hacker Green
+        const charSet = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789XYZ';
+        
+        let columns = 0;
+        let drops = []; // Keep track of y-position of each column
+        let width, height;
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Calculate number of columns
+            columns = Math.floor(width / fontSize);
+            
+            // Reset drops array
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                // Randomize starting Y to make it look organic immediately
+                drops[i] = Math.random() * (height / fontSize); 
+            }
+        }
+
+        // Initialize Camera
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        facingMode: "user" 
+                    } 
+                });
+                video.srcObject = stream;
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve(video);
+                    };
+                });
+            } catch (e) {
+                alert("Camera access denied. The Matrix cannot find you.");
+                console.error(e);
+            }
+        }
+
+        // The Magic Loop
+        function draw() {
+            // 1. Create a fading trail effect
+            // Instead of clearing the screen, we draw a translucent black rectangle
+            // This makes the characters fade out slowly
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; 
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Prepare to draw text
+            ctx.font = fontSize + 'px monospace';
+            ctx.textBaseline = 'top'; // Align text to top-left of grid cell
+
+            // 3. We need the video data to check brightness
+            // We draw the video to a tiny off-screen canvas or just grab data from the video element directly
+            // To save performance, we will map the column/row index to video coordinates roughly
+            
+            // A temporary canvas to read pixel data is safest across browsers
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            // We only need a small snapshot
+            tempCanvas.width = columns; 
+            tempCanvas.height = Math.floor(height / fontSize); 
+            
+            // Draw video scaled down to our grid size
+            tempCtx.drawImage(video, 0, 0, columns, tempCanvas.height);
+            
+            // Get all pixel data at once (Performant)
+            const frameData = tempCtx.getImageData(0, 0, columns, tempCanvas.height).data;
+
+            // 4. Loop through dropping characters
+            for (let i = 0; i < drops.length; i++) {
+                // Get the current character
+                const char = charSet[Math.floor(Math.random() * charSet.length)];
+                
+                // Current Grid Position
+                const x = i * fontSize;
+                const y = Math.floor(drops[i]) * fontSize;
+                
+                // Find the pixel index in our scaled-down video frame
+                // Formula: (row * width + col) * 4 (since RGBA is 4 bytes)
+                const videoRow = Math.floor(drops[i]);
+                
+                // Wrap logic: if row is out of bounds (falling off screen), use bottom row or top row
+                // Actually, if it's off screen we don't care about pixel color much, but let's be safe
+                const safeRow = Math.min(videoRow, tempCanvas.height - 1);
+                
+                const pixelIndex = (safeRow * columns + i) * 4;
+                
+                // Extract RGB
+                const r = frameData[pixelIndex];
+                const g = frameData[pixelIndex + 1];
+                const b = frameData[pixelIndex + 2];
+                
+                // Calculate Brightness (Average)
+                const brightness = (r + g + b) / 3;
+                
+                // LOGIC: 
+                // If the video pixel is dark, the matrix code is dim/invisible.
+                // If the video pixel is bright, the matrix code is bright green/white.
+                
+                // Normalize brightness 0.0 to 1.0
+                const alpha = brightness / 255;
+
+                // Threshold: If it's too dark, don't draw (pure black background)
+                if (alpha > 0.1) {
+                    // Flashy white/green effect for very bright spots
+                    if (alpha > 0.8) {
+                        ctx.fillStyle = '#FFF'; // White hot
+                    } else {
+                        ctx.fillStyle = `rgba(0, 255, 70, ${alpha})`; // Matrix Green
+                    }
+                    
+                    ctx.fillText(char, x, y);
+                }
+
+                // Move drop down
+                drops[i]++;
+
+                // Reset drop to top randomly
+                if (drops[i] * fontSize > height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+            }
+            
+            requestAnimationFrame(draw);
+        }
+
+        // Start System
+        window.addEventListener('resize', resize);
+        
+        setupCamera().then(() => {
+            resize();
+            draw();
+        });
+
+    </script>
+</body>
+</html>
