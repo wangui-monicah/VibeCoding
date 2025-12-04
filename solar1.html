@@ -21,7 +21,7 @@
             font-family: 'Share Tech Mono', monospace;
             height: 100vh;
             width: 100vw;
-            overflow: hidden; /* We handle scroll manually for control */
+            overflow: hidden; 
         }
 
         /* --- VISUAL NOISE & OVERLAYS --- */
@@ -65,7 +65,7 @@
         button {
             background: transparent; border: 1px solid var(--term); color: var(--term);
             padding: 20px 50px; font-family: 'Orbitron'; letter-spacing: 5px;
-            font-size: 1.2rem; transition: 0.2s; text-transform: uppercase;
+            font-size: 1.2rem; transition: 0.2s; text-transform: uppercase; cursor: pointer;
         }
         button:hover { background: var(--term); color: #000; box-shadow: 0 0 30px var(--term); }
 
@@ -80,23 +80,20 @@
             transition: opacity 2s;
         }
 
-        /* WARP CANVAS */
         #star-canvas {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: -1;
         }
 
         .section {
-            height: 120vh; /* Extra spacing */
+            height: 120vh;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             position: relative;
             transform-style: preserve-3d;
         }
 
         .planet-container {
-            position: relative;
-            width: 200px; height: 200px;
-            transition: transform 0.1s; /* JS driven for parallax */
+            position: relative; width: 200px; height: 200px;
         }
 
         .planet {
@@ -123,7 +120,7 @@
 
         .label {
             margin-top: 30px; font-family: 'Orbitron'; font-size: 2rem;
-            text-shadow: 0 0 10px currentColor; opacity: 0.6;
+            text-shadow: 0 0 10px currentColor; opacity: 0.6; pointer-events: none;
         }
         .warning-text {
             color: var(--warn); font-size: 0.8rem; letter-spacing: 2px;
@@ -155,9 +152,10 @@
         #immersion-layer.active { opacity: 1; pointer-events: all; }
 
         .planet-backdrop {
-            position: absolute; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; opacity: 0.4; filter: blur(2px) contrast(1.5);
             animation: breathe 10s infinite alternate;
+            z-index: 0; /* Behind everything else */
         }
 
         .data-block {
@@ -172,14 +170,25 @@
         h1 { font-family: 'Orbitron'; font-size: 4rem; margin-bottom: 20px; text-shadow: 0 0 30px currentColor; }
         p { font-size: 1.1rem; line-height: 1.6; color: #ccc; }
 
+        /* FIXED EXIT BUTTON */
         #exit-marker {
             position: absolute; top: 40px; left: 40px;
             color: var(--warn); border: 1px solid var(--warn);
-            padding: 10px 20px; font-size: 0.8rem; cursor: pointer;
-            opacity: 0; transition: 2s;
+            padding: 15px 30px; font-size: 0.9rem; cursor: pointer;
+            z-index: 2000; /* FORCE TO FRONT */
+            background: rgba(0,0,0,0.8);
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 2px;
+            opacity: 0; transition: opacity 2s, transform 0.2s;
+            box-shadow: 0 0 10px rgba(255, 51, 0, 0.2);
         }
-        #immersion-layer.active #exit-marker { opacity: 1; transition-delay: 3s; }
-        #exit-marker:hover { background: var(--warn); color: #000; }
+        #immersion-layer.active #exit-marker { opacity: 1; transition-delay: 2s; }
+        #exit-marker:hover { 
+            background: var(--warn); 
+            color: #000; 
+            box-shadow: 0 0 20px var(--warn);
+            transform: scale(1.05);
+        }
 
         /* --- ANIMATIONS --- */
         @keyframes grain-shift {
@@ -222,17 +231,7 @@
     <div id="universe">
         <div style="height: 50vh"></div> <!-- Spacer -->
 
-        <div class="section">
-            <div class="planet-container" onclick="crashLand('sun')">
-                <div class="planet sun"></div>
-                <div class="planet-glitch"></div>
-            </div>
-            <div class="label">
-                THE SOL
-                <div class="warning-text">CRITICAL HEAT DETECTED</div>
-            </div>
-        </div>
-
+        <div class="section"><div class="planet-container" onclick="crashLand('sun')"><div class="planet sun"></div><div class="planet-glitch"></div></div><div class="label">THE SOL<div class="warning-text">CRITICAL HEAT DETECTED</div></div></div>
         <div class="section"><div class="planet-container" onclick="crashLand('mercury')"><div class="planet mercury"></div><div class="planet-glitch"></div></div><div class="label">MERCURY<div class="warning-text">ATMOSPHERE: NONE</div></div></div>
         <div class="section"><div class="planet-container" onclick="crashLand('venus')"><div class="planet venus"></div><div class="planet-glitch"></div></div><div class="label">VENUS<div class="warning-text">PRESSURE: CRITICAL</div></div></div>
         <div class="section"><div class="planet-container" onclick="crashLand('earth')"><div class="planet earth"></div><div class="planet-glitch"></div></div><div class="label">EARTH<div class="warning-text">STATUS: TERMINAL</div></div></div>
@@ -241,9 +240,12 @@
         <div class="section"><div class="planet-container" onclick="crashLand('saturn')"><div class="planet saturn"></div><div class="planet-glitch"></div></div><div class="label">SATURN<div class="warning-text">DEBRIS FIELD</div></div></div>
         <div class="section"><div class="planet-container" onclick="crashLand('uranus')"><div class="planet uranus"></div><div class="planet-glitch"></div></div><div class="label">URANUS<div class="warning-text">TEMP: ABSOLUTE ZERO</div></div></div>
         <div class="section"><div class="planet-container" onclick="crashLand('neptune')"><div class="planet neptune"></div><div class="planet-glitch"></div></div><div class="label">NEPTUNE<div class="warning-text">VISIBILITY: 0%</div></div></div>
+        
+        <div style="height: 50vh"></div>
     </div>
 
     <div id="immersion-layer">
+        <!-- MOVED BEFORE BACKDROP AND GIVEN Z-INDEX -->
         <div id="exit-marker" onclick="eject()">EMERGENCY EJECT</div>
         <div class="planet-backdrop" id="p-bg"></div>
         <div class="data-block">
@@ -260,13 +262,12 @@
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AudioContext();
 
-            // 1. DEEP DRONE (The emptiness)
+            // 1. DEEP DRONE
             droneOsc = audioCtx.createOscillator();
             droneGain = audioCtx.createGain();
             droneOsc.type = 'sawtooth';
-            droneOsc.frequency.value = 40; // Low rumble
+            droneOsc.frequency.value = 40; 
             
-            // Filter to make it sound muffled/underwater
             const lowPass = audioCtx.createBiquadFilter();
             lowPass.type = 'lowpass';
             lowPass.frequency.value = 120;
@@ -278,7 +279,7 @@
             droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
             droneGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 5);
 
-            // 2. STATIC (The cosmic radiation)
+            // 2. STATIC
             const bufferSize = audioCtx.sampleRate * 2;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -291,7 +292,6 @@
             noiseGain = audioCtx.createGain();
             noiseGain.gain.value = 0.05;
             
-            // Highpass to make it sound like whisper
             const highPass = audioCtx.createBiquadFilter();
             highPass.type = 'highpass';
             highPass.frequency.value = 1000;
@@ -303,12 +303,12 @@
         }
 
         function screamEffect() {
-            // Generates a horrifying screech on crash
+            if(!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5); // Rise
-            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 2); // Fall
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5); 
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 2); 
 
             gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
@@ -358,7 +358,7 @@
                 this.z = Math.random() * 1000;
             }
             update() {
-                this.z -= (2 + warpSpeed); // Move towards screen
+                this.z -= (2 + warpSpeed);
                 if (this.z <= 0) {
                     this.z = 1000;
                     this.x = Math.random() * width - width / 2;
@@ -370,13 +370,11 @@
                 let y = (this.y / this.z) * 500 + height / 2;
                 let size = (1000 - this.z) / 1000 * 2;
                 
-                // Trail effect during warp
                 if (warpSpeed > 10) {
                     ctx.beginPath();
                     ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
                     ctx.lineWidth = size;
                     ctx.moveTo(x, y);
-                    // Draw line back to center
                     ctx.lineTo(width/2, height/2); 
                     ctx.stroke();
                 } else {
@@ -389,7 +387,7 @@
         for (let i = 0; i < 800; i++) stars.push(new Star());
 
         function animateStars() {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // Trail fade
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; 
             ctx.fillRect(0, 0, width, height);
             stars.forEach(s => { s.update(); s.draw(); });
             requestAnimationFrame(animateStars);
@@ -459,7 +457,7 @@
 
             // 2. AUDIO SCREAM
             screamEffect();
-            droneOsc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 1); // Drop bass
+            droneOsc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 1); 
             
             // 3. WARP SPEED
             let speedInterval = setInterval(() => { warpSpeed += 5; }, 50);
@@ -482,7 +480,7 @@
 
         function showPlanet(key) {
             const data = planetData[key];
-            universe.style.display = 'none'; // Hide scroll
+            universe.style.display = 'none'; 
             
             pTitle.innerText = key.toUpperCase();
             pTitle.style.color = data.color;
@@ -495,23 +493,25 @@
             
             immersionLayer.classList.add('active');
 
-            // AMBIENCE CHANGE
             if(key === 'sun') {
-                droneOsc.frequency.value = 100; // Angry hum
-                noiseGain.gain.value = 0.2; // Loud crackle
+                droneOsc.frequency.value = 100; 
+                noiseGain.gain.value = 0.2; 
             } else if (key === 'neptune') {
-                droneOsc.frequency.value = 30; // Deep sub
-                noiseGain.gain.value = 0.1; // Wind
+                droneOsc.frequency.value = 30; 
+                noiseGain.gain.value = 0.1; 
             }
         }
 
         function eject() {
             immersionLayer.classList.remove('active');
+            
             setTimeout(() => {
                 universe.style.display = 'block';
                 // Reset audio
-                droneOsc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 2);
-                noiseGain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 2);
+                if(audioCtx) {
+                    droneOsc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 2);
+                    noiseGain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 2);
+                }
             }, 1000);
         }
 
