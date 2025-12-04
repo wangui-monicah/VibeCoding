@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBSERVER_TERMINAL // FATAL_ERROR</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Oswald:wght@700&display=swap');
+
+        :root {
+            --blood: #8a0303;
+            --term: #a8a8a8;
+            --black: #020202;
+            --scan-line: rgba(255, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: none; } /* Cursor hidden for immersion */
+
+        body {
+            background-color: var(--black);
+            color: var(--term);
+            font-family: 'Courier Prime', monospace;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* --- CUSTOM CURSOR --- */
+        #cursor {
+            position: fixed; width: 20px; height: 20px;
+            border: 1px solid var(--blood); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+            z-index: 10000; transition: width 0.1s, height 0.1s;
+            mix-blend-mode: difference;
+        }
+        #cursor.hovered { width: 50px; height: 50px; background: rgba(138, 3, 3, 0.2); }
+
+        /* --- UI OVERLAYS --- */
+        #bio-monitor {
+            position: fixed; top: 20px; right: 20px;
+            font-family: 'Oswald', sans-serif; text-align: right;
+            z-index: 900; color: var(--blood);
+        }
+        #bpm-display { font-size: 3rem; }
+        #status-display { font-size: 1rem; letter-spacing: 2px; }
+
+        #scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none; z-index: 800;
+        }
+
+        #cracked-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://www.transparenttextures.com/patterns/cracked-glass.png'); /* Texture pattern */
+            opacity: 0; z-index: 950; pointer-events: none;
+            mix-blend-mode: overlay;
+        }
+
+        /* --- START SCREEN --- */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        #start-btn {
+            background: #000; color: #fff; border: 1px solid #333;
+            padding: 20px 40px; font-family: 'Courier Prime'; text-transform: uppercase;
+            letter-spacing: 5px; cursor: none; transition: 0.3s;
+        }
+        #start-btn:hover { background: var(--blood); color: #000; border-color: var(--blood); }
+
+        /* --- UNIVERSE --- */
+        #universe {
+            height: 100vh; overflow-y: scroll; scroll-behavior: smooth;
+            opacity: 0; transition: opacity 3s;
+        }
+        /* Hide scrollbar */
+        #universe::-webkit-scrollbar { width: 0; }
+
+        .section {
+            height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border-bottom: 1px solid #111; position: relative;
+        }
+
+        .planet-wrapper {
+            width: 300px; height: 300px; display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+
+        .planet {
+            width: 150px; height: 150px; border-radius: 50%;
+            background: #000; border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+        }
+        .planet::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 30% 30%, transparent, #000);
+            z-index: 2;
+        }
+        
+        .planet-wrapper:hover .planet { transform: scale(1.5); border-color: var(--blood); box-shadow: 0 0 50px var(--blood); }
+        
+        .label {
+            position: absolute; bottom: 20%;
+            font-family: 'Oswald'; font-size: 4rem; color: #111;
+            text-transform: uppercase; letter-spacing: 10px;
+            pointer-events: none; transition: 0.3s; z-index: -1;
+        }
+        .section:hover .label { color: var(--term); text-shadow: 0 0 10px var(--term); }
+
+        /* --- DEATH OVERLAY --- */
+        #death-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+        }
+        #death-screen.active { opacity: 1; pointer-events: all; }
+
+        .death-text {
+            max-width: 600px; padding: 20px; text-align: justify;
+            color: #ccc; line-height: 1.8; font-size: 1.1rem;
+            border-left: 2px solid var(--blood);
+            animation: text-flicker 0.1s infinite;
+        }
+        
+        h1.death-header {
+            font-family: 'Oswald'; font-size: 6rem; color: var(--blood);
+            text-shadow: 2px 2px 0px #fff; mix-blend-mode: exclusion;
+            margin-bottom: 20px;
+        }
+
+        #eject-btn {
+            margin-top: 50px; border: 1px solid #333; padding: 10px 20px;
+            color: #333; font-size: 0.8rem; letter-spacing: 3px;
+            transition: 0.5s; cursor: none;
+        }
+        #eject-btn:hover { border-color: var(--blood); color: var(--blood); }
+
+        /* --- ANIMATIONS --- */
+        @keyframes text-flicker {
+            0% { opacity: 1; transform: translateX(0); }
+            5% { opacity: 0.8; transform: translateX(1px); }
+            10% { opacity: 1; transform: translateX(-1px); }
+            100% { opacity: 1; }
+        }
+
+        @keyframes violent-shake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-10px, 10px) rotate(-1deg); }
+            50% { transform: translate(10px, -10px) rotate(1deg); }
+            75% { transform: translate(-10px, -10px) rotate(-1deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        @keyframes red-flash {
+            0% { background: rgba(138, 3, 3, 0); }
+            10% { background: rgba(138, 3, 3, 0.8); }
+            100% { background: rgba(138, 3, 3, 0); }
+        }
+
+        .shaking { animation: violent-shake 0.2s infinite; }
+        .bleeding { animation: red-flash 0.5s forwards; }
+
+    </style>
+</head>
+<body>
+
+    <div id="cursor"></div>
+    <div id="scanlines"></div>
+    <div id="cracked-screen"></div>
+
+    <div id="bio-monitor">
+        <div id="bpm-display">00 BPM</div>
+        <div id="status-display">SIGNAL LOST</div>
+    </div>
+
+    <div id="start-screen">
+        <p style="margin-bottom: 20px; color: #444;">[ SENSORY WARNING: EXTREME ]</p>
+        <button id="start-btn">CONNECT NEURAL LINK</button>
+    </div>
+
+    <div id="universe">
+        <div class="section" onmouseenter="setRisk(100)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('sun')">
+                <div class="planet" style="background: radial-gradient(#fff, #ff5e00);"></div>
+            </div>
+            <div class="label">SOL</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(60)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('mercury')">
+                <div class="planet" style="background: radial-gradient(#777, #333);"></div>
+            </div>
+            <div class="label">MERCURY</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(80)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('venus')">
+                <div class="planet" style="background: radial-gradient(#eec, #c84);"></div>
+            </div>
+            <div class="label">VENUS</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(40)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('earth')">
+                <div class="planet" style="background: radial-gradient(#46a, #000);"></div>
+            </div>
+            <div class="label">EARTH</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(70)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('mars')">
+                <div class="planet" style="background: radial-gradient(#d33, #511);"></div>
+            </div>
+            <div class="label">MARS</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(90)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('jupiter')">
+                <div class="planet" style="background: radial-gradient(#ca9, #853);"></div>
+            </div>
+            <div class="label">JUPITER</div>
+        </div>
+        
+        <div style="height: 50vh;"></div>
+    </div>
+
+    <div id="death-screen">
+        <h1 class="death-header" id="d-head">FATALITY</h1>
+        <p class="death-text" id="d-text">...</p>
+        <div id="eject-btn" onclick="revive()">INITIATE LAZARUS PROTOCOL</div>
+    </div>
+
+    <script>
+        // --- CUSTOM CURSOR ---
+        const cursor = document.getElementById('cursor');
+        document.addEventListener('mousemove', e => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+        document.querySelectorAll('div').forEach(el => {
+            el.addEventListener('mouseover', () => cursor.classList.add('hovered'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
+        });
+
+        // --- AUDIO ENGINE ---
+        let audioCtx, masterGain, heartOsc, droneOsc;
+        let isAlive = false;
+        let heartInterval;
+
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            
+            // Background Drone (Industrial Hum)
+            droneOsc = audioCtx.createOscillator();
+            droneOsc.type = 'sawtooth';
+            droneOsc.frequency.value = 50;
+            const droneFilter = audioCtx.createBiquadFilter();
+            droneFilter.type = 'lowpass';
+            droneFilter.frequency.value = 100;
+            const droneVol = audioCtx.createGain();
+            droneVol.gain.value = 0.3;
+            
+            droneOsc.connect(droneFilter);
+            droneFilter.connect(droneVol);
+            droneVol.connect(masterGain);
+            droneOsc.start();
+            
+            startHeartbeat();
+            isAlive = true;
+        }
+
+        // --- HEARTBEAT SYSTEM ---
+        let currentBPM = 60;
+        let targetBPM = 60;
+
+        function playHeartbeat() {
+            if(!isAlive) return;
+            
+            // Sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+
+            // UI Pulse
+            document.getElementById('bpm-display').style.transform = "scale(1.1)";
+            setTimeout(() => document.getElementById('bpm-display').style.transform = "scale(1)", 100);
+        }
+
+        function startHeartbeat() {
+            function loop() {
+                if(!isAlive) return;
+                // Lerp BPM
+                currentBPM += (targetBPM - currentBPM) * 0.1;
+                document.getElementById('bpm-display').innerText = Math.floor(currentBPM) + " BPM";
+                document.getElementById('status-display').innerText = currentBPM > 120 ? "TACHYCARDIA" : "STABLE";
+                document.getElementById('status-display').style.color = currentBPM > 120 ? "var(--blood)" : "var(--term)";
+
+                playHeartbeat();
+                let interval = 60000 / currentBPM;
+                heartInterval = setTimeout(loop, interval);
+            }
+            loop();
+        }
+
+        function setRisk(level) {
+            // Hovering over planet increases heart rate
+            if(!isAlive) return;
+            targetBPM = 60 + level;
+            
+            // Add static noise based on risk
+            if(level > 50 && audioCtx) {
+                // simple noise burst
+            }
+        }
+
+        // --- DEATH LOGIC ---
+        const deathData = {
+            sun: {
+                head: "INCINERATION",
+                text: "Pain is a signal. Here, the signal travels slower than the destruction. Your retinas burn out before your brain registers the light. The water in your cells instantly flashes into steam, exploding your body from the inside out. You are not dying; you are becoming physics."
+            },
+            mercury: {
+                head: "BOILING//FREEZING",
+                text: "The sun side strips the protons from your atoms. Your blood boils in your veins, creating gas bubbles that shred your capillaries. If you crawl to the dark side, the temperature drops instantly. The boiling blood freezes into jagged crimson crystals. You are a statue of gore."
+            },
+            venus: {
+                head: "IMPLOSION",
+                text: "The pressure is 90 times that of Earth. It feels like a mountain has been placed on your chest. Your ribs snap inward, puncturing your lungs. The atmosphere is sulfuric acid; as you gasp for air, you dissolve your throat from the inside. You are being digested by the sky."
+            },
+            earth: {
+                head: "ABANDONMENT",
+                text: "You crashed in the ocean. Alone. The water is cold and dark. You float, looking up at the stars, realizing that in a universe of chaos, this was the only safe place, and you missed it. The salt water fills your lungs. It burns. The despair is heavier than the water."
+            },
+            mars: {
+                head: "ASPHYXIATION",
+                text: "The atmosphere is too thin to hold your fluids together. The saliva on your tongue boils away. You gasp for oxygen but inhale only rust and dust. Your eyes dry out and crack. You claw at your throat, but there is nothing to breathe but the memory of air."
+            },
+            jupiter: {
+                head: "LIQUEFACTION",
+                text: "There is no surface. You fall through storms of metallic hydrogen. The radiation creates a storm in your mind, firing every neuron at once—a seizure of infinite duration. Then the pressure builds. You do not break; you become liquid. You join the storm."
+            }
+        };
+
+        const startBtn = document.getElementById('start-btn');
+        const universe = document.getElementById('universe');
+        const deathScreen = document.getElementById('death-screen');
+
+        startBtn.addEventListener('click', () => {
+            initAudio();
+            document.getElementById('start-screen').style.display = 'none';
+            universe.style.opacity = 1;
+        });
+
+        function killUser(planet) {
+            isAlive = false;
+            clearTimeout(heartInterval);
+            
+            // 1. FLATLINE SOUND
+            const osc = audioCtx.createOscillator();
+            osc.frequency.value = 2000; // High pitch tone
+            osc.connect(masterGain);
+            osc.start();
+            // Tinnitus fading in
+            const tinOsc = audioCtx.createOscillator();
+            tinOsc.frequency.value = 8000;
+            const tinGain = audioCtx.createGain();
+            tinOsc.connect(tinGain);
+            tinGain.connect(masterGain);
+            tinOsc.start();
+            tinGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            tinGain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 2);
+            
+            // 2. VISUAL HORROR
+            document.body.classList.add('shaking');
+            const flash = document.createElement('div');
+            flash.style.position = 'fixed'; flash.style.top=0; flash.style.left=0; flash.style.width='100%'; flash.style.height='100%';
+            flash.style.zIndex = 9999;
+            flash.classList.add('bleeding');
+            document.body.appendChild(flash);
+            
+            document.getElementById('bpm-display').innerText = "ERROR";
+            document.getElementById('status-display').innerText = "SUBJECT TERMINATED";
+            document.getElementById('cracked-screen').style.opacity = 0.5;
+
+            // 3. SHOW DATA
+            setTimeout(() => {
+                document.body.classList.remove('shaking');
+                universe.style.display = 'none';
+                osc.stop(); // Stop flatline, keep tinnitus
+                
+                const data = deathData[planet];
+                document.getElementById('d-head').innerText = data.head;
+                document.getElementById('d-text').innerText = data.text;
+                deathScreen.classList.add('active');
+            }, 2000);
+        }
+
+        function revive() {
+            // Reset state
+            deathScreen.classList.remove('active');
+            universe.style.display = 'block';
+            document.getElementById('cracked-screen').style.opacity = 0;
+            
+            // Audio Reset
+            isAlive = true;
+            currentBPM = 60;
+            startHeartbeat();
+            
+            // Stop Tinnitus (brute force reload context for simplicity in this snippet or gain fade)
+            // Ideally we'd track the nodes, but a page refresh vibe works for 'respawn'
+            window.location.reload(); 
+        }
+
+    </script>
+</body>
+</html>
