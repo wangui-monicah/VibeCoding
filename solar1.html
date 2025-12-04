@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOID_OS // SYSTEM FAILURE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@900&display=swap');
+
+        :root {
+            --void: #050505;
+            --term: #a8a8a8;
+            --warn: #ff3300;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+
+        body {
+            background-color: #000;
+            color: var(--term);
+            font-family: 'Share Tech Mono', monospace;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* We handle scroll manually for control */
+        }
+
+        /* --- VISUAL NOISE & OVERLAYS --- */
+        #grain {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.15;
+            z-index: 900;
+            pointer-events: none;
+            animation: grain-shift 0.5s steps(3) infinite;
+        }
+
+        #vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, #000 120%);
+            z-index: 800;
+            pointer-events: none;
+        }
+
+        #glitch-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 0, 0, 0.1);
+            mix-blend-mode: color-dodge;
+            opacity: 0;
+            z-index: 950;
+            pointer-events: none;
+        }
+
+        /* --- START SCREEN --- */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 3s ease;
+        }
+        
+        button {
+            background: transparent; border: 1px solid var(--term); color: var(--term);
+            padding: 20px 50px; font-family: 'Orbitron'; letter-spacing: 5px;
+            font-size: 1.2rem; transition: 0.2s; text-transform: uppercase;
+        }
+        button:hover { background: var(--term); color: #000; box-shadow: 0 0 30px var(--term); }
+
+        /* --- MAIN UNIVERSE --- */
+        #universe {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-behavior: smooth;
+            perspective: 2px;
+            transform-style: preserve-3d;
+            opacity: 0;
+            transition: opacity 2s;
+        }
+
+        /* WARP CANVAS */
+        #star-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+        }
+
+        .section {
+            height: 120vh; /* Extra spacing */
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .planet-container {
+            position: relative;
+            width: 200px; height: 200px;
+            transition: transform 0.1s; /* JS driven for parallax */
+        }
+
+        .planet {
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            box-shadow: inset -50px -50px 100px #000;
+            position: relative;
+            z-index: 10;
+            transition: 0.3s;
+            cursor: pointer;
+            filter: brightness(0.8) contrast(1.2);
+        }
+        
+        .planet:hover { filter: brightness(1.1) contrast(1.5); }
+        
+        .planet-glitch {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 50%; background: inherit;
+            mix-blend-mode: hard-light;
+            opacity: 0;
+            z-index: -1;
+        }
+        .planet-container:hover .planet-glitch { animation: glitch-anim 0.3s infinite; opacity: 0.5; }
+
+        .label {
+            margin-top: 30px; font-family: 'Orbitron'; font-size: 2rem;
+            text-shadow: 0 0 10px currentColor; opacity: 0.6;
+        }
+        .warning-text {
+            color: var(--warn); font-size: 0.8rem; letter-spacing: 2px;
+            margin-top: 10px; opacity: 0; transition: opacity 0.5s;
+        }
+        .planet-container:hover + .label .warning-text { opacity: 1; animation: blink 0.5s infinite; }
+
+        /* --- PLANET SURFACES --- */
+        .sun { background: radial-gradient(circle, #fff, #ffae00, #ff4500); box-shadow: 0 0 100px #ff4500; }
+        .mercury { background: radial-gradient(circle, #888, #444, #111); }
+        .venus { background: radial-gradient(circle, #eec, #cfa, #864); }
+        .earth { background: radial-gradient(circle, #48c, #146, #001); }
+        .mars { background: radial-gradient(circle, #f54, #822, #310); }
+        .jupiter { background: radial-gradient(circle, #da9, #b86, #532); }
+        .saturn { background: radial-gradient(circle, #edb, #c96, #753); }
+        .uranus { background: radial-gradient(circle, #cef, #6ac, #257); }
+        .neptune { background: radial-gradient(circle, #56f, #23a, #005); }
+
+        /* --- IMMERSIVE OVERLAY --- */
+        #immersion-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 1000;
+            opacity: 0; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+        
+        #immersion-layer.active { opacity: 1; pointer-events: all; }
+
+        .planet-backdrop {
+            position: absolute; width: 100%; height: 100%;
+            background-size: cover; opacity: 0.4; filter: blur(2px) contrast(1.5);
+            animation: breathe 10s infinite alternate;
+        }
+
+        .data-block {
+            z-index: 1001; max-width: 600px; padding: 40px;
+            border-left: 2px solid var(--term);
+            background: rgba(0,0,0,0.8);
+            transform: skewX(-10deg);
+            opacity: 0; transition: 1s;
+        }
+        #immersion-layer.active .data-block { opacity: 1; transform: skewX(0); }
+
+        h1 { font-family: 'Orbitron'; font-size: 4rem; margin-bottom: 20px; text-shadow: 0 0 30px currentColor; }
+        p { font-size: 1.1rem; line-height: 1.6; color: #ccc; }
+
+        #exit-marker {
+            position: absolute; top: 40px; left: 40px;
+            color: var(--warn); border: 1px solid var(--warn);
+            padding: 10px 20px; font-size: 0.8rem; cursor: pointer;
+            opacity: 0; transition: 2s;
+        }
+        #immersion-layer.active #exit-marker { opacity: 1; transition-delay: 3s; }
+        #exit-marker:hover { background: var(--warn); color: #000; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes grain-shift {
+            0% { transform: translate(0,0); }
+            100% { transform: translate(-10px, -10px); }
+        }
+        @keyframes blink { 0%,100% {opacity: 1;} 50% {opacity: 0;} }
+        @keyframes glitch-anim {
+            0% { transform: translate(0); }
+            20% { transform: translate(-5px, 5px); }
+            40% { transform: translate(5px, -5px); }
+            60% { transform: translate(-5px, 0); }
+            80% { transform: translate(5px, 0); }
+            100% { transform: translate(0); }
+        }
+        @keyframes breathe { 0% {transform: scale(1);} 100% {transform: scale(1.1);} }
+        @keyframes whiteout { 
+            0% { background: #000; } 
+            50% { background: #fff; } 
+            100% { background: #000; } 
+        }
+
+        .crash-mode { animation: whiteout 0.2s steps(2) 5; }
+    </style>
+</head>
+<body>
+
+    <div id="grain"></div>
+    <div id="vignette"></div>
+    <div id="glitch-overlay"></div>
+
+    <div id="start-screen">
+        <h1 style="margin-bottom: 20px; font-family: 'Orbitron'; color: #fff;">VOID_OS v9.2</h1>
+        <p style="margin-bottom: 40px; color: #666;">AUDIO HARDWARE REQUIRED. FEAR RECOMMENDED.</p>
+        <button id="init-btn">INITIATE NEURAL LINK</button>
+    </div>
+
+    <canvas id="star-canvas"></canvas>
+
+    <div id="universe">
+        <div style="height: 50vh"></div> <!-- Spacer -->
+
+        <div class="section">
+            <div class="planet-container" onclick="crashLand('sun')">
+                <div class="planet sun"></div>
+                <div class="planet-glitch"></div>
+            </div>
+            <div class="label">
+                THE SOL
+                <div class="warning-text">CRITICAL HEAT DETECTED</div>
+            </div>
+        </div>
+
+        <div class="section"><div class="planet-container" onclick="crashLand('mercury')"><div class="planet mercury"></div><div class="planet-glitch"></div></div><div class="label">MERCURY<div class="warning-text">ATMOSPHERE: NONE</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('venus')"><div class="planet venus"></div><div class="planet-glitch"></div></div><div class="label">VENUS<div class="warning-text">PRESSURE: CRITICAL</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('earth')"><div class="planet earth"></div><div class="planet-glitch"></div></div><div class="label">EARTH<div class="warning-text">STATUS: TERMINAL</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('mars')"><div class="planet mars"></div><div class="planet-glitch"></div></div><div class="label">MARS<div class="warning-text">OXYGEN: 0%</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('jupiter')"><div class="planet jupiter"></div><div class="planet-glitch"></div></div><div class="label">JUPITER<div class="warning-text">GRAVITY: CRUSHING</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('saturn')"><div class="planet saturn"></div><div class="planet-glitch"></div></div><div class="label">SATURN<div class="warning-text">DEBRIS FIELD</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('uranus')"><div class="planet uranus"></div><div class="planet-glitch"></div></div><div class="label">URANUS<div class="warning-text">TEMP: ABSOLUTE ZERO</div></div></div>
+        <div class="section"><div class="planet-container" onclick="crashLand('neptune')"><div class="planet neptune"></div><div class="planet-glitch"></div></div><div class="label">NEPTUNE<div class="warning-text">VISIBILITY: 0%</div></div></div>
+    </div>
+
+    <div id="immersion-layer">
+        <div id="exit-marker" onclick="eject()">EMERGENCY EJECT</div>
+        <div class="planet-backdrop" id="p-bg"></div>
+        <div class="data-block">
+            <h1 id="p-title">VOID</h1>
+            <p id="p-desc">NO DATA FOUND.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- HORROR AUDIO ENGINE ---
+        let audioCtx, droneOsc, droneGain, noiseNode, noiseGain;
+
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            // 1. DEEP DRONE (The emptiness)
+            droneOsc = audioCtx.createOscillator();
+            droneGain = audioCtx.createGain();
+            droneOsc.type = 'sawtooth';
+            droneOsc.frequency.value = 40; // Low rumble
+            
+            // Filter to make it sound muffled/underwater
+            const lowPass = audioCtx.createBiquadFilter();
+            lowPass.type = 'lowpass';
+            lowPass.frequency.value = 120;
+
+            droneOsc.connect(lowPass);
+            lowPass.connect(droneGain);
+            droneGain.connect(audioCtx.destination);
+            droneOsc.start();
+            droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            droneGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 5);
+
+            // 2. STATIC (The cosmic radiation)
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = buffer;
+            noiseNode.loop = true;
+            noiseGain = audioCtx.createGain();
+            noiseGain.gain.value = 0.05;
+            
+            // Highpass to make it sound like whisper
+            const highPass = audioCtx.createBiquadFilter();
+            highPass.type = 'highpass';
+            highPass.frequency.value = 1000;
+
+            noiseNode.connect(highPass);
+            highPass.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseNode.start();
+        }
+
+        function screamEffect() {
+            // Generates a horrifying screech on crash
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5); // Rise
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 2); // Fall
+
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+
+            // Distortion
+            const waveShaper = audioCtx.createWaveShaper();
+            function makeDistortionCurve(amount) {
+                let k = typeof amount === 'number' ? amount : 50,
+                    n_samples = 44100,
+                    curve = new Float32Array(n_samples),
+                    deg = Math.PI / 180,
+                    i = 0,
+                    x;
+                for ( ; i < n_samples; ++i ) {
+                    x = i * 2 / n_samples - 1;
+                    curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
+                }
+                return curve;
+            }
+            waveShaper.curve = makeDistortionCurve(400);
+
+            osc.connect(waveShaper);
+            waveShaper.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 2);
+        }
+
+        // --- VISUALS ---
+        const canvas = document.getElementById('star-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let stars = [];
+        let warpSpeed = 0;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Star {
+            constructor() {
+                this.x = Math.random() * width - width / 2;
+                this.y = Math.random() * height - height / 2;
+                this.z = Math.random() * 1000;
+            }
+            update() {
+                this.z -= (2 + warpSpeed); // Move towards screen
+                if (this.z <= 0) {
+                    this.z = 1000;
+                    this.x = Math.random() * width - width / 2;
+                    this.y = Math.random() * height - height / 2;
+                }
+            }
+            draw() {
+                let x = (this.x / this.z) * 500 + width / 2;
+                let y = (this.y / this.z) * 500 + height / 2;
+                let size = (1000 - this.z) / 1000 * 2;
+                
+                // Trail effect during warp
+                if (warpSpeed > 10) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = size;
+                    ctx.moveTo(x, y);
+                    // Draw line back to center
+                    ctx.lineTo(width/2, height/2); 
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = "rgba(255,255,255,0.8)";
+                    ctx.fillRect(x, y, size, size);
+                }
+            }
+        }
+
+        for (let i = 0; i < 800; i++) stars.push(new Star());
+
+        function animateStars() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // Trail fade
+            ctx.fillRect(0, 0, width, height);
+            stars.forEach(s => { s.update(); s.draw(); });
+            requestAnimationFrame(animateStars);
+        }
+
+        // --- GAMEPLAY LOGIC ---
+        const planetData = {
+            sun: {
+                color: '#ff2200',
+                desc: "THE GREAT CONSUMER. There is no sound here, only the roar of physics tearing itself apart. You are burning. You are already dead. The light is so bright it has burned the memory of darkness from your mind. It is beautiful. It is Hell."
+            },
+            mercury: {
+                color: '#555',
+                desc: "SCREAMING SILENCE. One side is fire, the other is ice. The ground beneath you cracks from thermal shock. You are the only thing that has ever bled on this rock. The sun looms overhead, a tyrant god watching you wither."
+            },
+            venus: {
+                color: '#dca',
+                desc: "THE PRESSURE CHAMBER. The sky is yellow and sick. The air melts your suit. The pressure forces your eyes into your skull. It is a greenhouse of death. You feel the weight of a thousand oceans crushing you into the dirt."
+            },
+            earth: {
+                color: '#0f0',
+                desc: "THE GRAVEYARD OF GODS. From here, it looks peaceful. But you know the truth. You feel the ghosts of billions screaming in the static. It is a blue marble floating in a sea of nothing. It is fragile. It is terrifyingly alone."
+            },
+            mars: {
+                color: '#a33',
+                desc: "RUST AND BONE. The wind howls, carrying dust that tastes like old blood. This was a world once. Now it is a corpse. You are walking on the skeleton of a civilization that never was. The silence is waiting for you."
+            },
+            jupiter: {
+                color: '#c85',
+                desc: "THE ENDLESS STORM. There is no ground. You are falling forever into a gas ocean. The wind shreds your skin. The radiation boils your blood. The Eye is watching you. It has been watching for a million years."
+            },
+            saturn: {
+                color: '#d95',
+                desc: "THE SHATTERED HALO. Ice crystals the size of mountains float in the dark. It is a graveyard of moons. The rings sing a song of collision and destruction. It is cold. So incredibly cold. Beauty is mathematics here, and the equation is zero."
+            },
+            uranus: {
+                color: '#6ce',
+                desc: "THE SIDEWAYS TOMB. A pale blue eye staring into the void. Time feels wrong here. The sun is just a bright star. You are drifting in a freezing fog that numbs your very soul. Nothing changes. Nothing ever will."
+            },
+            neptune: {
+                color: '#23a',
+                desc: "THE DEEP DARK. The winds break the sound barrier. The darkness is physical. You are at the edge of reality. Look out into the black... do you feel it staring back? The void is not empty. It is hungry."
+            }
+        };
+
+        const startScreen = document.getElementById('start-screen');
+        const universe = document.getElementById('universe');
+        const initBtn = document.getElementById('init-btn');
+
+        initBtn.addEventListener('click', () => {
+            initAudio();
+            startScreen.style.opacity = 0;
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                universe.style.opacity = 1;
+                animateStars();
+            }, 2000);
+        });
+
+        // Interactive Crash
+        function crashLand(planet) {
+            if(!audioCtx) return;
+
+            // 1. VISUAL GLITCH
+            document.getElementById('glitch-overlay').style.opacity = 1;
+            document.body.classList.add('crash-mode');
+
+            // 2. AUDIO SCREAM
+            screamEffect();
+            droneOsc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 1); // Drop bass
+            
+            // 3. WARP SPEED
+            let speedInterval = setInterval(() => { warpSpeed += 5; }, 50);
+
+            setTimeout(() => {
+                // 4. IMPACT
+                clearInterval(speedInterval);
+                warpSpeed = 0;
+                document.body.classList.remove('crash-mode');
+                document.getElementById('glitch-overlay').style.opacity = 0;
+                
+                showPlanet(planet);
+            }, 1500);
+        }
+
+        const immersionLayer = document.getElementById('immersion-layer');
+        const pTitle = document.getElementById('p-title');
+        const pDesc = document.getElementById('p-desc');
+        const pBg = document.getElementById('p-bg');
+
+        function showPlanet(key) {
+            const data = planetData[key];
+            universe.style.display = 'none'; // Hide scroll
+            
+            pTitle.innerText = key.toUpperCase();
+            pTitle.style.color = data.color;
+            pTitle.style.textShadow = `0 0 50px ${data.color}`;
+            
+            pDesc.innerText = data.desc;
+            
+            pBg.style.backgroundColor = data.color;
+            pBg.style.boxShadow = `inset 0 0 300px #000`;
+            
+            immersionLayer.classList.add('active');
+
+            // AMBIENCE CHANGE
+            if(key === 'sun') {
+                droneOsc.frequency.value = 100; // Angry hum
+                noiseGain.gain.value = 0.2; // Loud crackle
+            } else if (key === 'neptune') {
+                droneOsc.frequency.value = 30; // Deep sub
+                noiseGain.gain.value = 0.1; // Wind
+            }
+        }
+
+        function eject() {
+            immersionLayer.classList.remove('active');
+            setTimeout(() => {
+                universe.style.display = 'block';
+                // Reset audio
+                droneOsc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 2);
+                noiseGain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 2);
+            }, 1000);
+        }
+
+    </script>
+</body>
+</html>
