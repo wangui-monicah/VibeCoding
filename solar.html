@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Beautiful Void</title>
+    <style>
+        /* --- RESET & FONTS --- */
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Orbitron:wght@400;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Cinzel', serif;
+            overflow-x: hidden;
+            height: 100vh;
+            width: 100vw;
+            perspective: 1000px; /* For 3D effects */
+        }
+
+        /* --- AUDIO OVERLAY --- */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 2s ease;
+        }
+        #start-btn {
+            background: transparent;
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 20px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            transition: 0.3s;
+        }
+        #start-btn:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+
+        /* --- SPACE BACKGROUND --- */
+        .stars {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            z-index: -1;
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out;
+            opacity: 0;
+        }
+
+        /* --- MAIN SCROLL CONTAINER --- */
+        #universe-container {
+            height: 100vh;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            perspective: 1px;
+            transform-style: preserve-3d;
+        }
+
+        .section {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            position: relative;
+            padding: 100px 20px;
+        }
+
+        /* --- CELESTIAL BODIES --- */
+        .body-wrapper {
+            cursor: pointer;
+            transition: transform 0.5s ease;
+        }
+        .body-wrapper:hover { transform: scale(1.05); }
+        
+        .planet-sphere {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset -40px -40px 100px rgba(0,0,0,0.9);
+            transition: all 0.5s;
+        }
+
+        .label {
+            margin-top: 20px;
+            text-align: center;
+            opacity: 0.7;
+            letter-spacing: 3px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Specific Visuals */
+        .sun {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle at 30% 30%, #ffd700, #ff8c00, #ff4500, #000);
+            box-shadow: 0 0 100px #ff4500, 0 0 200px #ff8c00;
+            animation: pulseSun 4s infinite alternate;
+        }
+        .mercury { background: radial-gradient(circle at 30% 30%, #a9a9a9, #696969, #2f2f2f); }
+        .venus { background: radial-gradient(circle at 30% 30%, #e6e6fa, #d2b48c, #8b4513); }
+        .earth { background: radial-gradient(circle at 30% 30%, #4682b4, #228b22, #000080); }
+        .mars { background: radial-gradient(circle at 30% 30%, #ff6347, #8b0000, #2f0000); }
+        .jupiter { background: radial-gradient(circle at 30% 30%, #deb887, #cd853f, #8b4513); }
+        .saturn { 
+            background: radial-gradient(circle at 30% 30%, #f4a460, #d2691e); 
+            position: relative;
+        }
+        .saturn::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 450px; height: 100px;
+            border: 20px solid rgba(210, 180, 140, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotate(-20deg);
+            box-shadow: 0 0 20px rgba(210, 180, 140, 0.4);
+        }
+        .uranus { background: radial-gradient(circle at 30% 30%, #afeeee, #40e0d0, #00ced1); }
+        .neptune { background: radial-gradient(circle at 30% 30%, #4169e1, #0000cd, #191970); }
+
+        /* --- SURFACE VIEW (IMMERSIVE) --- */
+        #surface-view {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+        }
+        
+        #surface-view.active { opacity: 1; pointer-events: all; }
+
+        .atmosphere-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; opacity: 0.5;
+            filter: blur(50px);
+        }
+
+        .content-box {
+            max-width: 800px;
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            transform: translateY(50px);
+            opacity: 0;
+            transition: 1s ease 2s; /* Delayed appearance */
+        }
+        #surface-view.active .content-box { transform: translateY(0); opacity: 1; }
+
+        h1 { font-size: 4rem; margin-bottom: 10px; text-shadow: 0 0 20px currentColor; }
+        h2 { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: #aaa; margin-bottom: 30px; }
+        p { font-size: 1.2rem; line-height: 1.8; color: #ddd; }
+
+        /* --- EXIT BUTTON --- */
+        #exit-btn {
+            position: absolute;
+            top: 40px; left: 40px;
+            width: 60px; height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.5s;
+            animation: glowBtn 3s infinite;
+        }
+        #exit-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+        #exit-btn::before { content: '✕'; font-size: 1.5rem; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+        @keyframes pulseSun {
+            0% { box-shadow: 0 0 100px #ff4500; }
+            100% { box-shadow: 0 0 300px #ff4500, 0 0 600px #ff0000; }
+        }
+        @keyframes glowBtn {
+            0% { box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+            50% { box-shadow: 0 0 30px rgba(255,255,255,0.5); }
+            100% { box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        }
+        @keyframes crashLanding {
+            0% { transform: scale(1); filter: blur(0px); }
+            50% { transform: scale(20); filter: blur(5px); }
+            90% { transform: scale(50); filter: blur(20px) brightness(5); }
+            100% { transform: scale(60); opacity: 0; }
+        }
+        @keyframes zoomOut {
+            0% { transform: scale(5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Shake effect for crash */
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-5px, 0, 0) scale(20); }
+            20%, 80% { transform: translate3d(5px, 0, 0) scale(20); }
+            30%, 50%, 70% { transform: translate3d(-10px, 0, 0) scale(20); }
+            40%, 60% { transform: translate3d(10px, 0, 0) scale(20); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Start Screen for Audio Permission -->
+    <div id="start-screen">
+        <h2 style="margin-bottom: 20px; opacity: 0.7;">Headphones Recommended</h2>
+        <button id="start-btn">Enter The Void</button>
+    </div>
+
+    <!-- Space Background -->
+    <div class="stars" id="star-container"></div>
+
+    <!-- Audio (Simulated Source) -->
+    <audio id="bg-audio" loop>
+        <!-- Replace this with a valid URL to a space drone sound if you have one -->
+        <!-- Using a placeholder noise generator in JS for now if this fails -->
+        <source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=space-atmosphere-22442.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Universe Scroll -->
+    <div id="universe-container">
+        
+        <div class="section">
+            <div class="body-wrapper" onclick="enterPlanet('sun')">
+                <div class="sun planet-sphere"></div>
+                <div class="label">THE SOL</div>
+            </div>
+            <p style="margin-top:20px; max-width: 500px; text-align: center; color: #ffae00;">
+                The giver of life, the burner of worlds. <br>Feel the heat. Feel the vacuum.
+            </p>
+        </div>
+
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('mercury')"><div class="mercury planet-sphere"></div><div class="label">MERCURY</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('venus')"><div class="venus planet-sphere"></div><div class="label">VENUS</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('earth')"><div class="earth planet-sphere"></div><div class="label">EARTH</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('mars')"><div class="mars planet-sphere"></div><div class="label">MARS</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('jupiter')"><div class="jupiter planet-sphere"></div><div class="label">JUPITER</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('saturn')"><div class="saturn planet-sphere"></div><div class="label">SATURN</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('uranus')"><div class="uranus planet-sphere"></div><div class="label">URANUS</div></div></div>
+        <div class="section"><div class="body-wrapper" onclick="enterPlanet('neptune')"><div class="neptune planet-sphere"></div><div class="label">NEPTUNE</div></div></div>
+        
+        <div class="section" style="height: 50vh;">
+            <p style="opacity: 0.5;">The edge of the known...</p>
+        </div>
+    </div>
+
+    <!-- Surface/Planet View Overlay -->
+    <div id="surface-view">
+        <div id="exit-btn" onclick="exitPlanet()"></div>
+        <div class="atmosphere-bg" id="atmosphere"></div>
+        <div class="content-box">
+            <h1 id="p-name">PLANET</h1>
+            <h2 id="p-sub">THE SUBTITLE</h2>
+            <p id="p-desc">Description goes here.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const planetData = {
+            sun: {
+                color: '#ff4500',
+                sub: "THE GREAT DEVOURER",
+                desc: "You are standing on the surface of a screaming star. The heat is not just temperature; it is a physical weight that crushes the soul. It feels like God is angry here. Yet, in this blinding death, there is the purity of absolute energy. No shadows exist, only the relentless, beautiful burning of eternity."
+            },
+            mercury: {
+                color: '#696969',
+                sub: "THE SCORCHED GRAVEYARD",
+                desc: "A world of extremes. One side boils your blood instantly, the other freezes your tears before they fall. It is a silent rock, stripped of atmosphere, naked before the sun. The beauty here is in the desolation—the silence of a world that never had a chance to breathe. It feels like the skeleton of a planet."
+            },
+            venus: {
+                color: '#d2b48c',
+                sub: "THE TOXIC VEIL",
+                desc: "Beautiful from afar, horrific up close. The air is acid. The pressure crushes you like a tin can deep underwater. It is the definition of a beautiful trap. The yellow skies hide a hellscape of volcanoes and lightning. It feels like a warning from the universe: beauty can kill."
+            },
+            earth: {
+                color: '#228b22',
+                sub: "THE ANOMALY",
+                desc: "The only place that screams 'Life' in a universe of dead things. Seeing it from above, you feel a profound loneliness, realizing how fragile this blue marble is. It is the balance of chaos and order. You feel the ghosts of billions of lives, and the divine miracle that any of us are here at all."
+            },
+            mars: {
+                color: '#8b0000',
+                sub: "THE RUSTED GOD",
+                desc: "Dust. Endless, red dust. It feels like walking through dried blood. The silence here is ancient, waiting for water that evaporated millions of years ago. It is a beautiful corpse of a planet, preserved in rust and cold. You feel the emptiness of potential that was lost."
+            },
+            jupiter: {
+                color: '#cd853f',
+                sub: "THE STORM KING",
+                desc: "There is no ground here, only an endless fall into crushing storms. The winds scream at speeds that tear atoms apart. The Great Red Spot stares at you like the eye of a madness god. It is majestic, terrifying, and vast beyond comprehension. You feel insignificant."
+            },
+            saturn: {
+                color: '#d2691e',
+                sub: "THE CROWNED GIANT",
+                desc: "The rings look like a halo, divine and perfect. But inside the rings, it is a violent dance of ice and rock colliding. Floating here, looking up at the arcs of ice against the black void, you feel a cold, mathematical beauty. It is the jewelry of the dead."
+            },
+            uranus: {
+                color: '#40e0d0',
+                sub: "THE SIDEWAYS ICE",
+                desc: "A pale blue ball of ice, rolling on its side. It is freezing, calm, and utterly indifferent to your existence. The sun is just a bright star here. The coldness penetrates your bones, a stillness that feels like time has stopped. It is the beauty of a coma."
+            },
+            neptune: {
+                color: '#0000cd',
+                sub: "THE WIND WALKER",
+                desc: "Dark. So dark. The blue here is the color of the deep ocean at night. Supersonic winds whip around you in the dark. It feels like the edge of reality, the last stop before the true, endless void. There is a terrifying peace in being this far from the light."
+            }
+        };
+
+        // --- SETUP STARS ---
+        const starContainer = document.getElementById('star-container');
+        for(let i=0; i<200; i++){
+            const star = document.createElement('div');
+            star.classList.add('star');
+            const xy = Math.random() * 100;
+            const duration = Math.random() * 3 + 2;
+            const size = Math.random() * 2 + 1;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.setProperty('--duration', `${duration}s`);
+            starContainer.appendChild(star);
+        }
+
+        // --- AUDIO & START ---
+        const startBtn = document.getElementById('start-btn');
+        const startScreen = document.getElementById('start-screen');
+        const audio = document.getElementById('bg-audio');
+        
+        startBtn.addEventListener('click', () => {
+            startScreen.style.opacity = 0;
+            setTimeout(() => startScreen.style.display = 'none', 2000);
+            audio.volume = 0.5;
+            audio.play().catch(e => console.log("Audio play failed", e));
+        });
+
+        // --- NAVIGATION LOGIC ---
+        const universeContainer = document.getElementById('universe-container');
+        const surfaceView = document.getElementById('surface-view');
+        
+        // Elements to update
+        const atmosphere = document.getElementById('atmosphere');
+        const pName = document.getElementById('p-name');
+        const pSub = document.getElementById('p-sub');
+        const pDesc = document.getElementById('p-desc');
+
+        function enterPlanet(planetKey) {
+            const data = planetData[planetKey];
+            const clickedElement = event.currentTarget.querySelector('.planet-sphere');
+            
+            // 1. Trigger Crash Animation
+            clickedElement.style.animation = "crashLanding 2s forwards";
+            clickedElement.classList.add('shake');
+
+            // 2. Audio Swell (Simulated)
+            // In a real app, we'd ramp up volume here
+            
+            // 3. Wait for impact
+            setTimeout(() => {
+                // Prepare Surface View
+                pName.innerText = planetKey.toUpperCase();
+                pName.style.color = data.color;
+                pSub.innerText = data.sub;
+                pDesc.innerText = data.desc;
+                atmosphere.style.backgroundColor = data.color;
+                atmosphere.style.boxShadow = `inset 0 0 200px ${data.color}`;
+
+                // Show Overlay
+                surfaceView.classList.add('active');
+                universeContainer.style.display = 'none'; // Hide scroll temporarily
+                
+                // Reset the sphere animation for next time
+                clickedElement.style.animation = ""; 
+                clickedElement.classList.remove('shake');
+            }, 1800); // Sync with animation end
+        }
+
+        function exitPlanet() {
+            // 1. Zoom out animation logic
+            surfaceView.classList.remove('active');
+            universeContainer.style.display = 'block';
+            
+            // 2. Play zoom out animation on the container
+            universeContainer.style.animation = "zoomOut 1.5s ease-out";
+            
+            setTimeout(() => {
+                universeContainer.style.animation = "";
+            }, 1500);
+        }
+
+    </script>
+</body>
+</html>
