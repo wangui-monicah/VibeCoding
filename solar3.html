@@ -14,7 +14,7 @@
             --scan-line: rgba(255, 0, 0, 0.1);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; cursor: none; } /* Cursor hidden for immersion */
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: none; } /* Hides default cursor */
 
         body {
             background-color: var(--black);
@@ -53,9 +53,10 @@
 
         #cracked-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: url('https://www.transparenttextures.com/patterns/cracked-glass.png'); /* Texture pattern */
+            background: url('https://www.transparenttextures.com/patterns/cracked-glass.png');
             opacity: 0; z-index: 950; pointer-events: none;
             mix-blend-mode: overlay;
+            transition: opacity 0.2s;
         }
 
         /* --- START SCREEN --- */
@@ -64,19 +65,18 @@
             background: #000; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        #start-btn {
+        button {
             background: #000; color: #fff; border: 1px solid #333;
             padding: 20px 40px; font-family: 'Courier Prime'; text-transform: uppercase;
             letter-spacing: 5px; cursor: none; transition: 0.3s;
         }
-        #start-btn:hover { background: var(--blood); color: #000; border-color: var(--blood); }
+        button:hover { background: var(--blood); color: #000; border-color: var(--blood); }
 
         /* --- UNIVERSE --- */
         #universe {
             height: 100vh; overflow-y: scroll; scroll-behavior: smooth;
             opacity: 0; transition: opacity 3s;
         }
-        /* Hide scrollbar */
         #universe::-webkit-scrollbar { width: 0; }
 
         .section {
@@ -96,12 +96,6 @@
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative; overflow: hidden;
         }
-        .planet::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at 30% 30%, transparent, #000);
-            z-index: 2;
-        }
-        
         .planet-wrapper:hover .planet { transform: scale(1.5); border-color: var(--blood); box-shadow: 0 0 50px var(--blood); }
         
         .label {
@@ -118,6 +112,7 @@
             background: #000; z-index: 2000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             opacity: 0; pointer-events: none;
+            transition: opacity 1s;
         }
         #death-screen.active { opacity: 1; pointer-events: all; }
 
@@ -134,13 +129,6 @@
             margin-bottom: 20px;
         }
 
-        #eject-btn {
-            margin-top: 50px; border: 1px solid #333; padding: 10px 20px;
-            color: #333; font-size: 0.8rem; letter-spacing: 3px;
-            transition: 0.5s; cursor: none;
-        }
-        #eject-btn:hover { border-color: var(--blood); color: var(--blood); }
-
         /* --- ANIMATIONS --- */
         @keyframes text-flicker {
             0% { opacity: 1; transform: translateX(0); }
@@ -148,7 +136,6 @@
             10% { opacity: 1; transform: translateX(-1px); }
             100% { opacity: 1; }
         }
-
         @keyframes violent-shake {
             0% { transform: translate(0, 0) rotate(0deg); }
             25% { transform: translate(-10px, 10px) rotate(-1deg); }
@@ -156,7 +143,6 @@
             75% { transform: translate(-10px, -10px) rotate(-1deg); }
             100% { transform: translate(0, 0) rotate(0deg); }
         }
-
         @keyframes red-flash {
             0% { background: rgba(138, 3, 3, 0); }
             10% { background: rgba(138, 3, 3, 0.8); }
@@ -184,8 +170,10 @@
         <button id="start-btn">CONNECT NEURAL LINK</button>
     </div>
 
+    <!-- MAIN SCROLLABLE UNIVERSE -->
     <div id="universe">
-        <div class="section" onmouseenter="setRisk(100)" onmouseleave="setRisk(0)">
+        
+        <div class="section" onmouseenter="setRisk(120)" onmouseleave="setRisk(0)">
             <div class="planet-wrapper" onclick="killUser('sun')">
                 <div class="planet" style="background: radial-gradient(#fff, #ff5e00);"></div>
             </div>
@@ -226,14 +214,37 @@
             </div>
             <div class="label">JUPITER</div>
         </div>
+
+        <div class="section" onmouseenter="setRisk(85)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('saturn')">
+                <div class="planet" style="background: radial-gradient(#e3d09d, #b5a642);"></div>
+            </div>
+            <div class="label">SATURN</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(100)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('uranus')">
+                <div class="planet" style="background: radial-gradient(#a3e8ff, #4287f5);"></div>
+            </div>
+            <div class="label">URANUS</div>
+        </div>
+
+        <div class="section" onmouseenter="setRisk(110)" onmouseleave="setRisk(0)">
+            <div class="planet-wrapper" onclick="killUser('neptune')">
+                <div class="planet" style="background: radial-gradient(#3333ff, #00008b);"></div>
+            </div>
+            <div class="label">NEPTUNE</div>
+        </div>
         
         <div style="height: 50vh;"></div>
     </div>
 
+    <!-- DEATH SCREEN OVERLAY -->
     <div id="death-screen">
         <h1 class="death-header" id="d-head">FATALITY</h1>
         <p class="death-text" id="d-text">...</p>
-        <div id="eject-btn" onclick="revive()">INITIATE LAZARUS PROTOCOL</div>
+        <br><br>
+        <button id="lazarus-btn" onclick="revive()">INITIATE LAZARUS PROTOCOL</button>
     </div>
 
     <script>
@@ -243,15 +254,16 @@
             cursor.style.left = e.clientX + 'px';
             cursor.style.top = e.clientY + 'px';
         });
-        document.querySelectorAll('div').forEach(el => {
+        document.querySelectorAll('.planet-wrapper, button').forEach(el => {
             el.addEventListener('mouseover', () => cursor.classList.add('hovered'));
             el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
         });
 
         // --- AUDIO ENGINE ---
-        let audioCtx, masterGain, heartOsc, droneOsc;
+        let audioCtx, masterGain, heartOsc, droneOsc, tinOsc;
         let isAlive = false;
         let heartInterval;
+        let tinnitusNode;
 
         function initAudio() {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -259,7 +271,7 @@
             masterGain = audioCtx.createGain();
             masterGain.connect(audioCtx.destination);
             
-            // Background Drone (Industrial Hum)
+            // Background Drone
             droneOsc = audioCtx.createOscillator();
             droneOsc.type = 'sawtooth';
             droneOsc.frequency.value = 50;
@@ -298,7 +310,7 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.1);
 
-            // UI Pulse
+            // Pulse Visual
             document.getElementById('bpm-display').style.transform = "scale(1.1)";
             setTimeout(() => document.getElementById('bpm-display').style.transform = "scale(1)", 100);
         }
@@ -306,11 +318,17 @@
         function startHeartbeat() {
             function loop() {
                 if(!isAlive) return;
-                // Lerp BPM
                 currentBPM += (targetBPM - currentBPM) * 0.1;
                 document.getElementById('bpm-display').innerText = Math.floor(currentBPM) + " BPM";
-                document.getElementById('status-display').innerText = currentBPM > 120 ? "TACHYCARDIA" : "STABLE";
-                document.getElementById('status-display').style.color = currentBPM > 120 ? "var(--blood)" : "var(--term)";
+                
+                let status = "STABLE";
+                let color = "var(--term)";
+                if(currentBPM > 90) { status = "ELEVATED"; color = "#ffd700"; }
+                if(currentBPM > 120) { status = "CRITICAL"; color = "var(--blood)"; }
+                
+                const disp = document.getElementById('status-display');
+                disp.innerText = status;
+                disp.style.color = color;
 
                 playHeartbeat();
                 let interval = 60000 / currentBPM;
@@ -320,14 +338,8 @@
         }
 
         function setRisk(level) {
-            // Hovering over planet increases heart rate
             if(!isAlive) return;
             targetBPM = 60 + level;
-            
-            // Add static noise based on risk
-            if(level > 50 && audioCtx) {
-                // simple noise burst
-            }
         }
 
         // --- DEATH LOGIC ---
@@ -337,24 +349,36 @@
                 text: "Pain is a signal. Here, the signal travels slower than the destruction. Your retinas burn out before your brain registers the light. The water in your cells instantly flashes into steam, exploding your body from the inside out. You are not dying; you are becoming physics."
             },
             mercury: {
-                head: "BOILING//FREEZING",
-                text: "The sun side strips the protons from your atoms. Your blood boils in your veins, creating gas bubbles that shred your capillaries. If you crawl to the dark side, the temperature drops instantly. The boiling blood freezes into jagged crimson crystals. You are a statue of gore."
+                head: "THERMAL SHOCK",
+                text: "The sun side strips the protons from your atoms. Your blood boils in your veins. If you crawl to the dark side, the boiling blood freezes instantly into jagged crimson crystals. You are a statue of gore on a silent rock."
             },
             venus: {
                 head: "IMPLOSION",
-                text: "The pressure is 90 times that of Earth. It feels like a mountain has been placed on your chest. Your ribs snap inward, puncturing your lungs. The atmosphere is sulfuric acid; as you gasp for air, you dissolve your throat from the inside. You are being digested by the sky."
+                text: "The pressure is 90 times that of Earth. Your ribs snap inward, puncturing your lungs like popped balloons. The atmosphere is sulfuric acid; as you gasp for air, you dissolve your throat from the inside. You are being digested by the sky."
             },
             earth: {
-                head: "ABANDONMENT",
-                text: "You crashed in the ocean. Alone. The water is cold and dark. You float, looking up at the stars, realizing that in a universe of chaos, this was the only safe place, and you missed it. The salt water fills your lungs. It burns. The despair is heavier than the water."
+                head: "DROWNING",
+                text: "You crashed in the ocean. Alone. The water is cold and dark. You float, looking up at the stars, realizing that in a universe of chaos, this was the only safe place, and you missed it. The salt water fills your lungs. It burns."
             },
             mars: {
                 head: "ASPHYXIATION",
-                text: "The atmosphere is too thin to hold your fluids together. The saliva on your tongue boils away. You gasp for oxygen but inhale only rust and dust. Your eyes dry out and crack. You claw at your throat, but there is nothing to breathe but the memory of air."
+                text: "The atmosphere is too thin to hold your fluids together. The saliva on your tongue boils away. You gasp for oxygen but inhale only rust and dust. Your eyes dry out and crack. You claw at your throat, but there is nothing to breathe."
             },
             jupiter: {
                 head: "LIQUEFACTION",
-                text: "There is no surface. You fall through storms of metallic hydrogen. The radiation creates a storm in your mind, firing every neuron at once—a seizure of infinite duration. Then the pressure builds. You do not break; you become liquid. You join the storm."
+                text: "There is no surface. You fall through storms of metallic hydrogen. The radiation creates a storm in your mind, firing every neuron at once. Then the pressure builds. You do not break; you become liquid. You mix with the storm forever."
+            },
+            saturn: {
+                head: "SHREDDED",
+                text: "You drifted into the rings. They look like dust from afar, but they are mountains of ice moving at 40,000 mph. You are not just hit; you are erased. Your suit, your body, and your bones are turned into a fine red mist that paints the ice."
+            },
+            uranus: {
+                head: "CRYOGENIC",
+                text: "The cold is absolute. It stops atoms. Your heart doesn't stop beating; it freezes mid-beat. Your brain activity ceases instantly. You are perfectly preserved, drifting in a blue fog for eternity. A monument to silence."
+            },
+            neptune: {
+                head: "SHEAR FORCE",
+                text: "The winds here move faster than sound. You are not blown away; you are torn apart. The different parts of your body are accelerated in different directions. You are smeared across the atmosphere like oil on canvas."
             }
         };
 
@@ -374,58 +398,66 @@
             
             // 1. FLATLINE SOUND
             const osc = audioCtx.createOscillator();
-            osc.frequency.value = 2000; // High pitch tone
+            osc.frequency.value = 2000; 
             osc.connect(masterGain);
             osc.start();
-            // Tinnitus fading in
-            const tinOsc = audioCtx.createOscillator();
-            tinOsc.frequency.value = 8000;
+            
+            // Tinnitus
+            tinnitusNode = audioCtx.createOscillator();
+            tinnitusNode.frequency.value = 8000;
             const tinGain = audioCtx.createGain();
-            tinOsc.connect(tinGain);
+            tinnitusNode.connect(tinGain);
             tinGain.connect(masterGain);
-            tinOsc.start();
+            tinnitusNode.start();
             tinGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            tinGain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 2);
+            tinGain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 2);
             
             // 2. VISUAL HORROR
             document.body.classList.add('shaking');
+            
+            // Create bleeding flash
             const flash = document.createElement('div');
-            flash.style.position = 'fixed'; flash.style.top=0; flash.style.left=0; flash.style.width='100%'; flash.style.height='100%';
+            flash.style.position = 'fixed'; flash.style.top=0; flash.style.left=0; 
+            flash.style.width='100%'; flash.style.height='100%';
             flash.style.zIndex = 9999;
+            flash.style.pointerEvents = 'none'; // FIX: ALLOWS CLICKS THROUGH
             flash.classList.add('bleeding');
             document.body.appendChild(flash);
             
+            // Remove flash after animation
+            setTimeout(() => flash.remove(), 600);
+
             document.getElementById('bpm-display').innerText = "ERROR";
-            document.getElementById('status-display').innerText = "SUBJECT TERMINATED";
-            document.getElementById('cracked-screen').style.opacity = 0.5;
+            document.getElementById('status-display').innerText = "FATAL";
+            document.getElementById('cracked-screen').style.opacity = 0.6;
 
             // 3. SHOW DATA
             setTimeout(() => {
                 document.body.classList.remove('shaking');
                 universe.style.display = 'none';
-                osc.stop(); // Stop flatline, keep tinnitus
+                osc.stop(); // Stop flatline beep
                 
                 const data = deathData[planet];
                 document.getElementById('d-head').innerText = data.head;
                 document.getElementById('d-text').innerText = data.text;
                 deathScreen.classList.add('active');
-            }, 2000);
+            }, 1500);
         }
 
         function revive() {
-            // Reset state
             deathScreen.classList.remove('active');
             universe.style.display = 'block';
             document.getElementById('cracked-screen').style.opacity = 0;
             
-            // Audio Reset
+            // Stop Tinnitus
+            if(tinnitusNode) {
+                try { tinnitusNode.stop(); } catch(e){}
+            }
+
+            // Reset
             isAlive = true;
             currentBPM = 60;
             startHeartbeat();
-            
-            // Stop Tinnitus (brute force reload context for simplicity in this snippet or gain fade)
-            // Ideally we'd track the nodes, but a page refresh vibe works for 'respawn'
-            window.location.reload(); 
         }
 
     </script>
